@@ -1,0 +1,1 @@
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe  "& '.\SharedMailboxTool.ps1' >SharedMailboxTool.log 2>&1"
