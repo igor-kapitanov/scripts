@@ -12,7 +12,7 @@ if ($OutlookProcess) {
 $Mail = $Outlook.CreateItem(0)
 
 # Set the recipient of the email
-$Mail.To = "support@cloud-it.biz"
+$Mail.To = "type here the email address"
 
 # Set the subject of the email
 $Mail.Subject = "Support Ticket"
