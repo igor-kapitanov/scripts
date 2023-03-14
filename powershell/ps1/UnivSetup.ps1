@@ -231,6 +231,15 @@ function InstallPrograms
 	
 	#Install mRemoteNG
 	#choco install mremoteng -y
+
+	#Install TeamViewer
+	#choco install teamviewer -y
+
+	#Install Node JS
+	#choco install nodejs -y
+
+	#Install Winscp
+	#choco install winscp.install -y
 }
 
 function PowerSettings
