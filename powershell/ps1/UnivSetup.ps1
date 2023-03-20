@@ -240,6 +240,15 @@ function InstallPrograms
 
 	#Install Winscp
 	#choco install winscp.install -y
+	
+	#Install WebEx
+	#choco install webex-meetings -y
+	
+	#Install PHP
+	#choco install php -y
+	
+	#install
+	#choco install azure-cli -y
 }
 
 function PowerSettings
