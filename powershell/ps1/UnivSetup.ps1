@@ -249,6 +249,9 @@ function InstallPrograms
 	
 	#install
 	#choco install azure-cli -y
+
+	#install
+	#choco install qfinderpro -y
 }
 
 function PowerSettings
