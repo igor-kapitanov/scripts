@@ -247,11 +247,21 @@ function InstallPrograms
 	#Install PHP
 	#choco install php -y
 	
-	#install
+	#install Azure CLI
 	#choco install azure-cli -y
 
-	#install
+	#install Qnap Find
 	#choco install qfinderpro -y
+
+	#install Amazon Asistant Chrome
+	#$choco install amazon-assistant-chrome -y
+
+	#install Amazon Music
+	#choco install amazon-music -y
+
+	#install Amazon Music chrome
+	#choco install amazon-music-chrome -y
+
 }
 
 function PowerSettings
