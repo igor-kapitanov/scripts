@@ -1,6 +1,7 @@
 function LenovoUpdates
 {
 	Write-Host "***** Update Drivers *****" -ForegroundColor Green
+	Set-ExecutionPolicy Bypass -Scope Process -Force
 	Start-Process cmd -ArgumentList "/c PresentationSettings /start" -NoNewWindow
 	Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\System -Name ConsentPromptBehaviorAdmin -Value 0
 	Install-PackageProvider -Name NuGet -Force
