@@ -254,13 +254,7 @@ function InstallPrograms
 	#choco install qfinderpro -y
 
 	#install Amazon Asistant Chrome
-	#$choco install amazon-assistant-chrome -y
-
-	#install Amazon Music
-	#choco install amazon-music -y
-
-	#install Amazon Music chrome
-	#choco install amazon-music-chrome -y
+	#choco install amazon-assistant-chrome -y
 
 }
 
