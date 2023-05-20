@@ -303,7 +303,7 @@ function CreateUsers
     New-LocalUser $user2 -Password $password2 -FullName $fname2 -Description "the second admin user"
     Set-LocalUser $user2 -AccountNeverExpires -PasswordNeverExpires $true -UserMayChangePassword $false
 	
-	#Add users to yhe groups
+	#Add users to the groups
 	Add-LocalGroupMember -Group "Administrators" -Member $user1, $user2 -ErrorAction stop
 	Add-LocalGroupMember -Group "Users" -Member $user1, $user2 -ErrorAction stop
 	Add-LocalGroupMember -Group "Users" "User"
