@@ -179,6 +179,7 @@ function InstallPrograms
 		"procmon"
 		"displaylink"
 		"adblockpluschrome"
+		"lastpass-chrome"
 		"onedrive"
 		"hp-universal-print-driver-pcl"
 		"hp-universal-print-driver-ps"
@@ -199,9 +200,6 @@ function InstallPrograms
 	#Install CrystalDiskInfo
 	#choco install crystaldiskinfo.install -y
 	
-	#Install Dell Command Update
-	#choco install dellcommandupdate -y
-	
 	#Install HP Support Assistant
 	#choco install hpsupportassistant -y
 	
@@ -220,17 +218,11 @@ function InstallPrograms
 	#Install iCloud
 	#choco install icloud -y
 	
-	#Install LastPass for Chrome
-	#choco install lastpass-chrome -y
-	
 	#Install Slack
 	#choco install slack -y
 	
 	#Install Microsoft RDP client
 	#choco install remote-desktop-client -y
-	
-	#Install mRemoteNG
-	#choco install mremoteng -y
 
 	#Install TeamViewer
 	#choco install teamviewer -y
