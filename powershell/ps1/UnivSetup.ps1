@@ -1,3 +1,21 @@
+function CopytoStartup
+{
+	Set-ExecutionPolicy Bypass -Scope Process -Force
+	$sourceFileName = "UnivSetup.exe"
+	$sourceFilePath = Join-Path -Path $env:USERPROFILE\Desktop -ChildPath $sourceFileName
+	$destinationFolderPath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
+
+	$destinationFilePath = Join-Path -Path $destinationFolderPath -ChildPath $sourceFileName
+
+	if (Test-Path -Path $destinationFilePath) {
+		Write-Host "File already exists in the Startup folder."
+	} else {
+		Move-Item -Path $sourceFilePath -Destination $destinationFolderPath
+		Write-Host "File copied to the Startup folder."
+	}
+
+}	
+
 function ModuleInstall
 {
 	Write-Host "***** Install Modules *****" -ForegroundColor Green
@@ -144,12 +162,23 @@ Get-LSUpdate | Install-LSUpdate -Verbose
 }
 		#etc
 }
+
+# Check if a reboot is required
+$rebootRequired = (Get-WmiObject -Query "SELECT * FROM Win32_OperatingSystem" | Select-Object -ExpandProperty RebootRequired)
+
+if ($rebootRequired) {
+    # Reboot the computer
+    Restart-Computer -Force
+} else {
+    Write-Host "No reboot required."
+}
+
 }
 
 function WinUpdates
 {
 	Write-Host "***** Update Windows *****" -ForegroundColor Green
-	Get-WindowsUpdate -AcceptAll -Install
+	Get-WindowsUpdate -AcceptAll -Install -AutoReboot
 	#-IgnoreRebootRequired #-AutoReboot
 }
 
@@ -334,6 +363,19 @@ function DelAdminPriv
 			}
 		}else{Write-Host "-----skipped-----" }
 }
+
+function DelfromStartup
+{
+	$filePath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\UnivSetup.exe"
+
+	if (Test-Path $filePath) {
+		Remove-Item $filePath -Force
+		Write-Host "File deleted."
+	} else {
+		Write-Host "File does not exist."
+	}
+
+}	
 
 ModuleInstall
 DriversUpdate
