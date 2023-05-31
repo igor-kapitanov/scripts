@@ -1,21 +1,3 @@
-function CopytoStartup
-{
-	Set-ExecutionPolicy Bypass -Scope Process -Force
-	$sourceFileName = "UnivSetup.exe"
-	$sourceFilePath = Join-Path -Path $env:USERPROFILE\Desktop -ChildPath $sourceFileName
-	$destinationFolderPath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
-
-	$destinationFilePath = Join-Path -Path $destinationFolderPath -ChildPath $sourceFileName
-
-	if (Test-Path -Path $destinationFilePath) {
-		Write-Host "File already exists in the Startup folder."
-	} else {
-		Move-Item -Path $sourceFilePath -Destination $destinationFolderPath
-		Write-Host "File copied to the Startup folder."
-	}
-
-}	
-
 function ModuleInstall
 {
 	Write-Host "***** Install Modules *****" -ForegroundColor Green
@@ -333,49 +315,64 @@ function CreateUsers
 
 function DelAdminPriv
 {
-	Write-Host "***** Change an admin privilages *****" -ForegroundColor Green
-	$Users = Get-LocalUser | select -Property name, enabled
-	Get-LocalUser | select -Property name, enabled
-	Write-Host "delete user from admins? Which one?" -ForegroundColor DarkYellow
-	foreach ($user in $Users){
-	Write-host  $user.Name  -ForegroundColor Cyan
-	}
-	$chosen = read-host "write the user name (empty to skip)"
-		if($chosen){
-			try{
+	Write-Host "***** Change admin privileges *****" -ForegroundColor Green
+
+	# Check if users CITadmin and Install exist
+	$adminUsers = Get-LocalUser -Name "CITadmin", "Install" -ErrorAction SilentlyContinue
+	$adminUsernames = $adminUsers | Select-Object -ExpandProperty Name
+
+	if ($adminUsers.Count -eq 2) {
+		Write-Host "Users CITadmin and Install exist." -ForegroundColor Cyan
+		Write-Host "Deleting the User user..." -ForegroundColor Cyan
+
+		$users = Get-LocalUser | Select-Object -Property Name, Enabled
+		Write-Host "Users with admin privileges:" -ForegroundColor DarkYellow
+		$users | ForEach-Object {
+			Write-Host $_.Name -ForegroundColor Cyan
+		}
+
+		$chosen = "User"
+
+		if (![string]::IsNullOrEmpty($chosen)) {
+			try {
 				Remove-LocalGroupMember -Group "Administrators" -Member $chosen -ErrorAction Stop
-			}catch{
+				Write-Host "The user $chosen has been successfully removed from the Administrators group." -ForegroundColor Green
+			}
+			catch {
 				$errs = $_.Exception.Message
-				while ($errs -ne $null){
-				foreach ($err in $errs){
-					Write-Host $err -ForegroundColor Red
-					write-host Try again -ForegroundColor Cyan
-						}try{
-							$chosen01 = read-host "delete user from admins? Which one? (empty to skip)"
-							if([string]::IsNullOrEmpty($chosen01)){
-								Write-Host "-----skipped-----"
-								$errs=$null
-							}else{Remove-LocalGroupMember -Group "Administrators" -Member $chosen01 -ErrorAction Stop}
-					}catch{
+				while ($errs -ne $null) {
+					foreach ($err in $errs) {
+						Write-Host $err -ForegroundColor Red
+						Write-Host "Please try again." -ForegroundColor Cyan
+					}
+
+					try {
+						$chosen01 = Read-Host "Enter the user name to delete (leave empty to skip):"
+						if ([string]::IsNullOrEmpty($chosen01)) {
+							Write-Host "----- Skipped -----" -ForegroundColor Yellow
+							$errs = $null
+						}
+						else {
+							Remove-LocalGroupMember -Group "Administrators" -Member $chosen01 -ErrorAction Stop
+							Write-Host "User $chosen01 has been successfully removed from the Administrators group." -ForegroundColor Green
+						}
+					}
+					catch {
 						$errs = $_.Exception.Message
 					}
 				}
 			}
-		}else{Write-Host "-----skipped-----" }
-}
-
-function DelfromStartup
-{
-	$filePath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\UnivSetup.exe"
-
-	if (Test-Path $filePath) {
-		Remove-Item $filePath -Force
-		Write-Host "File deleted."
-	} else {
-		Write-Host "File does not exist."
+		}
+		else {
+			Write-Host "----- Skipped -----" -ForegroundColor Yellow
+		}
+	}
+	else {
+		Write-Host "Users CITadmin and Install do not exist. Skipping user deletion." -ForegroundColor Cyan
 	}
 
-}	
+}
+
 
 ModuleInstall
 DriversUpdate
