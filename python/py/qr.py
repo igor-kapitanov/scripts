@@ -1,5 +1,4 @@
 import os
-
 import qrcode
 
 img = qrcode.make(input("Please paste the link: "))
