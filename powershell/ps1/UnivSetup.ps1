@@ -1,4 +1,18 @@
-function ModuleInstall
+function CopS
+{
+	Set-ExecutionPolicy Bypass -Scope Process -Force
+	$sourceFileName = "UnivSetup.bat"
+	$sourceFilePath = Join-Path -Path $env:USERPROFILE\Desktop -ChildPath $sourceFileName
+	$destinationFolderPath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
+	$destinationFilePath = Join-Path -Path $destinationFolderPath -ChildPath $sourceFileName
+	if (Test-Path -Path $destinationFilePath) {
+		Write-Host "File already exists in the Startup folder."
+	} else {
+		Move-Item -Path $sourceFilePath -Destination $destinationFolderPath
+		Write-Host "File copied to the Startup folder."
+	}
+}
+function Mod
 {
 	Write-Host "***** Install Modules *****" -ForegroundColor Green
 	Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
@@ -7,164 +21,141 @@ function ModuleInstall
 	Install-PackageProvider -Name NuGet -Force
 	Install-Module PSWindowsUpdate -Force
 }
-
-function DriversUpdate
+function Drv
 {
-$mfc = Get-WmiObject Win32_ComputerSystem | Select-Object manufacturer
+	$mfc = Get-WmiObject Win32_ComputerSystem | Select-Object -ExpandProperty Manufacturer
 
-switch -Wildcard ($mfc){
-'*dell*'{
-Write-Host "***** Update Dell Drivers *****" -ForegroundColor Green	
-#This is to ensure that if an error happens, this script stops. 
-$ErrorActionPreference = "Stop"
+    switch -Wildcard ($mfc) {
+        '*dell*' {
+            Write-Host "***** Update Dell Drivers *****" -ForegroundColor Green
+            $DownloadURL = "https://wolftech.cc/6516510615/DCU.EXE"
+            $DownloadLocation = "C:\Temp"
+            $Reboot = "enable"
 
-### Set your variables below this line ###
-$DownloadURL = "https://wolftech.cc/6516510615/DCU.EXE"
-$DownloadLocation = "C:\Temp"
-$Reboot = "enable"
-### Set your variables above this line ###
+            Write-Host "Download URL is set to $DownloadURL"
+            Write-Host "Download Location is set to $DownloadLocation"
 
-write-host "Download URL is set to $DownloadURL"
-write-host "Download Location is set to $DownloadLocation"
- 
-#Check for 32bit or 64bit
-$DCUExists32 = Test-Path "C:\Program Files (x86)\Dell\CommandUpdate\dcu-cli.exe"
-write-host "Does C:\Program Files (x86)\Dell\CommandUpdate\dcu-cli.exe exist? $DCUExists32"
-$DCUExists64 = Test-Path "C:\Program Files\Dell\CommandUpdate\dcu-cli.exe"
-write-host "Does C:\Program Files\Dell\CommandUpdate\dcu-cli.exe exist? $DCUExists64"
+            $DCUExists32 = Test-Path "C:\Program Files (x86)\Dell\CommandUpdate\dcu-cli.exe"
+            Write-Host "Does C:\Program Files (x86)\Dell\CommandUpdate\dcu-cli.exe exist? $DCUExists32"
+            $DCUExists64 = Test-Path "C:\Program Files\Dell\CommandUpdate\dcu-cli.exe"
+            Write-Host "Does C:\Program Files\Dell\CommandUpdate\dcu-cli.exe exist? $DCUExists64"
 
-if ($DCUExists32 -eq $true) {
-    $DCUPath = "C:\Program Files (x86)\Dell\CommandUpdate\dcu-cli.exe"
-}    
-elseif ($DCUExists64 -eq $true) {
-    $DCUPath = "C:\Program Files\Dell\CommandUpdate\dcu-cli.exe"
-}
+            if ($DCUExists32 -eq $true) {
+                $DCUPath = "C:\Program Files (x86)\Dell\CommandUpdate\dcu-cli.exe"
+            } elseif ($DCUExists64 -eq $true) {
+                $DCUPath = "C:\Program Files\Dell\CommandUpdate\dcu-cli.exe"
+            }
 
-if (!$DCUExists32 -And !$DCUExists64) {
-    
-        $TestDownloadLocation = Test-Path $DownloadLocation
-        write-host "$DownloadLocation exists? $($TestDownloadLocation)"
-        
-        if (!$TestDownloadLocation) { new-item $DownloadLocation -ItemType Directory -force 
-            write-host "Temp Folder has been created"
+            if (-not $DCUExists32 -and -not $DCUExists64) {
+                $TestDownloadLocation = Test-Path $DownloadLocation
+                Write-Host "$DownloadLocation exists? $TestDownloadLocation"
+
+                if (-not $TestDownloadLocation) {
+                    New-Item $DownloadLocation -ItemType Directory -Force
+                    Write-Host "Temp Folder has been created"
+                }
+
+                $TestDownloadLocationZip = Test-Path "$DownloadLocation\DellCommandUpdate.exe"
+                Write-Host "DellCommandUpdate.exe exists in $DownloadLocation? $TestDownloadLocationZip"
+
+                if (-not $TestDownloadLocationZip) {
+                    Write-Host "Downloading DellCommandUpdate..."
+                    Invoke-WebRequest -UseBasicParsing -Uri $DownloadURL -OutFile "$DownloadLocation\DellCommandUpdate.exe"
+                    Write-Host "Installing DellCommandUpdate..."
+                    Start-Process -FilePath "$DownloadLocation\DellCommandUpdate.exe" -ArgumentList "/s" -Wait
+                    $DCUExists = Test-Path $DCUPath
+                    Write-Host "Done. Does $DCUPath exist now? $DCUExists"
+                    Set-Service -Name 'DellClientManagementService' -StartupType Manual
+                    Write-Host "Just set DellClientManagementService to Manual"
+                }
+            }
+
+            $DCUExists = Test-Path $DCUPath
+            Write-Host "About to run $DCUPath. Let's be sure to be sure. Does it exist? $DCUExists"
+
+            Start-Process $DCUPath -ArgumentList "/scan -report=$DownloadLocation" -Wait
+            Write-Host "Checking for results."
+
+            $XMLExists = Test-Path "$DownloadLocation\DCUApplicableUpdates.xml"
+            if (-not $XMLExists) {
+                Write-Host "Something went wrong. Waiting 60 seconds then trying again..."
+                Start-Sleep -Seconds 60
+                Start-Process $DCUPath -ArgumentList "/scan -report=$DownloadLocation" -Wait
+                $XMLExists = Test-Path "$DownloadLocation\DCUApplicableUpdates.xml"
+                Write-Host "Did the scan work this time? $XMLExists"
+            }
+
+            if ($XMLExists) {
+                [xml]$XMLReport = Get-Content "$DownloadLocation\DCUApplicableUpdates.xml"
+                $AvailableUpdates = $XMLReport.updates.update
+
+                $BIOSUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "BIOS" }).name.Count
+                $ApplicationUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "Application" }).name.Count
+                $DriverUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "Driver" }).name.Count
+                $FirmwareUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "Firmware" }).name.Count
+                $OtherUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "Other" }).name.Count
+                $PatchUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "Patch" }).name.Count
+                $UtilityUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "Utility" }).name.Count
+                $UrgentUpdates = ($XMLReport.updates.update | Where-Object { $_.Urgency -eq "Urgent" }).name.Count
+
+                Write-Host "Bios Updates: $BIOSUpdates"
+                Write-Host "Application Updates: $ApplicationUpdates"
+                Write-Host "Driver Updates: $DriverUpdates"
+                Write-Host "Firmware Updates: $FirmwareUpdates"
+                Write-Host "Other Updates: $OtherUpdates"
+                Write-Host "Patch Updates: $PatchUpdates"
+                Write-Host "Utility Updates: $UtilityUpdates"
+                Write-Host "Urgent Updates: $UrgentUpdates"
+            }
+
+            if (-not $XMLExists) {
+                Write-Host "We tried again and the scan still didn't run. Not sure what the problem is, but if you run the script again it'll probably work."
+                exit 1
+            } else {
+                Remove-Item "$DownloadLocation\DCUApplicableUpdates.xml" -Force
+            }
+
+            $Result = $BIOSUpdates + $ApplicationUpdates + $DriverUpdates + $FirmwareUpdates + $OtherUpdates + $PatchUpdates + $UtilityUpdates + $UrgentUpdates
+            Write-Host "Total Updates Available: $Result"
+
+            if ($Result -gt 0) {
+                $OPLogExists = Test-Path "$DownloadLocation\updateOutput.log"
+                if ($OPLogExists) {
+                    Remove-Item "$DownloadLocation\updateOutput.log" -Force
+                }
+
+                Write-Host "Lets do it! Updating Drivers. This may take a while..."
+                Start-Process $DCUPath -ArgumentList "/applyUpdates -autoSuspendBitLocker=enable -reboot=$Reboot -outputLog=$DownloadLocation\updateOutput.log" -Wait
+                Start-Sleep -Seconds 60
+                Get-Content -Path "$DownloadLocation\updateOutput.log"
+                Write-Host "Done."
+                exit 0
+            }
         }
-        
-        $TestDownloadLocationZip = Test-Path "$($DownloadLocation)\DellCommandUpdate.exe"
-        write-host "DellCommandUpdate.exe exists in $($DownloadLocation)? $($TestDownloadLocationZip)"
-        
-        if (!$TestDownloadLocationZip) { 
-            write-host "Downloading DellCommandUpdate..."
-            Invoke-WebRequest -UseBasicParsing -Uri $DownloadURL -OutFile "$($DownloadLocation)\DellCommandUpdate.exe"
-            write-host "Installing DellCommandUpdate..."
-            Start-Process -FilePath "$($DownloadLocation)\DellCommandUpdate.exe" -ArgumentList "/s" -Wait
-            $DCUExists = Test-Path "$($DCUPath)"
-            write-host "Done. Does $DCUPath exist now? $DCUExists"
-            set-service -name 'DellClientManagementService' -StartupType Manual 
-            write-host "Just set DellClientManagmentService to Manual"  
+
+        '*HP*' {
+            Write-Host "***** Install HP Assistant *****" -ForegroundColor Green
+            choco install hpsupportassistant -y
+            choco install hp-bios-cmdlets -y
         }
-}
-    
 
-
-$DCUExists = Test-Path "$DCUPath"
-write-host "About to run $DCUPath. Lets be sure to be sure. Does it exist? $DCUExists"
-
-Start-Process "$($DCUPath)" -ArgumentList "/scan -report=$($DownloadLocation)" -Wait
-write-host "Checking for results."
-
-
-$XMLExists = Test-Path "$DownloadLocation\DCUApplicableUpdates.xml"
-if (!$XMLExists) {
-        write-host "Something went wrong. Waiting 60 seconds then trying again..."
-     Start-Sleep -s 60
-    Start-Process "$($DCUPath)" -ArgumentList "/scan -report=$($DownloadLocation)" -Wait
-    $XMLExists = Test-Path "$DownloadLocation\DCUApplicableUpdates.xml"
-    write-host "Did the scan work this time? $XMLExists"
-}
-if ($XMLExists -eq $true) {
-    [xml]$XMLReport = get-content "$DownloadLocation\DCUApplicableUpdates.xml"
-    $AvailableUpdates = $XMLReport.updates.update
-     
-    $BIOSUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "BIOS" }).name.Count
-    $ApplicationUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "Application" }).name.Count
-    $DriverUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "Driver" }).name.Count
-    $FirmwareUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "Firmware" }).name.Count
-    $OtherUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "Other" }).name.Count
-    $PatchUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "Patch" }).name.Count
-    $UtilityUpdates = ($XMLReport.updates.update | Where-Object { $_.type -eq "Utility" }).name.Count
-    $UrgentUpdates = ($XMLReport.updates.update | Where-Object { $_.Urgency -eq "Urgent" }).name.Count
-    
-    #Print Results
-    write-host "Bios Updates: $BIOSUpdates"
-    write-host "Application Updates: $ApplicationUpdates"
-    write-host "Driver Updates: $DriverUpdates"
-    write-host "Firmware Updates: $FirmwareUpdates"
-    write-host "Other Updates: $OtherUpdates"
-    write-host "Patch Updates: $PatchUpdates"
-    write-host "Utility Updates: $UtilityUpdates"
-    write-host "Urgent Updates: $UrgentUpdates"
-}
-
-if (!$XMLExists) {
-    write-host "We tried again and the scan still didn't run. Not sure what the problem is, but if you run the script again it'll probably work."
-    exit 1
-}
-else {
-    #We now remove the item, because we don't need it anymore, and sometimes fails to overwrite
-    remove-item "$DownloadLocation\DCUApplicableUpdates.xml" -Force    
-}
-$Result = $BIOSUpdates + $ApplicationUpdates + $DriverUpdates + $FirmwareUpdates + $OtherUpdates + $PatchUpdates + $UtilityUpdates + $UrgentUpdates
-write-host "Total Updates Available: $Result"
-if ($Result -gt 0) {
-
-    $OPLogExists = Test-Path "$DownloadLocation\updateOutput.log"
-    if ($OPLogExists -eq $true) {
-        remove-item "$DownloadLocation\updateOutput.log" -Force
+        '*lenovo*' {
+            Write-Host "***** Update Lenovo Drivers *****" -ForegroundColor Green
+            choco install lenovo-thinkvantage-system-update -y
+            Start-Process cmd -ArgumentList "/c PresentationSettings /start" -NoNewWindow
+            Install-Module -Name 'LSUClient' -Force
+            Get-LSUpdate | Install-LSUpdate -Verbose
+        }
     }
-
-    write-host "Lets do it! Updating Drivers. This may take a while..."
-    Start-Process "$($DCUPath)" -ArgumentList "/applyUpdates -autoSuspendBitLocker=enable -reboot=$($Reboot) -outputLog=$($DownloadLocation)\updateOutput.log" -Wait
-    Start-Sleep -s 60
-    Get-Content -Path '$DownloadLocation\updateOutput.log'
-    write-host "Done."
-    exit 0
-}
-}
-'*HP*'{
-Write-Host "***** Install HP Asistant *****" -ForegroundColor Green
-choco install hpsupportassistant -y
-choco install hp-bios-cmdlets -y
-}
-'*lenovo*' {
-Write-Host "***** Update Lenovo Drivers *****" -ForegroundColor Green
-choco install lenovo-thinkvantage-system-update -y
-Start-Process cmd -ArgumentList "/c PresentationSettings /start" -NoNewWindow
-Install-Module -Name 'LSUClient' -Force
-Get-LSUpdate | Install-LSUpdate -Verbose
-}
-		#etc
 }
 
-# Check if a reboot is required
-$rebootRequired = (Get-WmiObject -Query "SELECT * FROM Win32_OperatingSystem" | Select-Object -ExpandProperty RebootRequired)
-
-if ($rebootRequired) {
-    # Reboot the computer
-    Restart-Computer -Force
-} else {
-    Write-Host "No reboot required."
-}
-
-}
-
-function WinUpdates
+function WUpd
 {
 	Write-Host "***** Update Windows *****" -ForegroundColor Green
 	Get-WindowsUpdate -AcceptAll -Install -AutoReboot
-	#-IgnoreRebootRequired #-AutoReboot
 }
 
-function InstallPrograms
+function Prog
 {
 	Write-Host "***** Install Programs *****" -ForegroundColor Green
 	$appname = @(
@@ -176,7 +167,6 @@ function InstallPrograms
 		"zoom"
 		"office365business"
 		"vcredist140"
-		"googlechrome"
 		"firefox"
 		"anydesk.install"
 		"dotnet4.5.2"
@@ -184,6 +174,7 @@ function InstallPrograms
 		"speedtest-by-ookla"
 		"powershell-core"
 		"autoruns"
+		"googlechrome"
 		"grammarly-for-windows"
 		"grammarly-chrome"
 		"advanced-ip-scanner"
@@ -192,76 +183,23 @@ function InstallPrograms
 		"adblockpluschrome"
 		"lastpass-chrome"
 		"onedrive"
+		"naps2"
 		"hp-universal-print-driver-pcl"
 		"hp-universal-print-driver-ps"
 		"kmupd"
 		"kmupd4"
 		"geupd"
 		"geupd4"
-		"xeroxupd"
-		"naps2"
-		
+		"xeroxupd"		
 	)
 
 	ForEach($app in $appname)
 	{
 		choco install $app -y
 	}
-	
-	#Install CrystalDiskInfo
-	#choco install crystaldiskinfo.install -y
-	
-	#Install HP Support Assistant
-	#choco install hpsupportassistant -y
-	
-	#Install PuTTY
-	#choco install putty.install -y
-	
-	#Install NotePad++
-	#choco install notepadplusplus -y
-	
-	#Install Avira Free Antivirus
-	#choco install avirafreeantivirus -y
-	
-	#Install Speccy
-	#choco install speccy -y
-	
-	#Install iCloud
-	#choco install icloud -y
-	
-	#Install Slack
-	#choco install slack -y
-	
-	#Install Microsoft RDP client
-	#choco install remote-desktop-client -y
-
-	#Install TeamViewer
-	#choco install teamviewer -y
-
-	#Install Node JS
-	#choco install nodejs -y
-
-	#Install Winscp
-	#choco install winscp.install -y
-	
-	#Install WebEx
-	#choco install webex-meetings -y
-	
-	#Install PHP
-	#choco install php -y
-	
-	#install Azure CLI
-	#choco install azure-cli -y
-
-	#install Qnap Find
-	#choco install qfinderpro -y
-
-	#install Amazon Asistant Chrome
-	#choco install amazon-assistant-chrome -y
-
 }
 
-function PowerSettings
+function PwSet
 {
 	Write-Host "***** Change Power Network *****" -ForegroundColor Green
 	$adapters = Get-NetAdapter -Physical | Get-NetAdapterPowerManagement
@@ -278,7 +216,7 @@ function PowerSettings
 	Powercfg /Change standby-timeout-dc 30
 }
 
-function RegChange
+function RegSet
 {
 	Write-Host "***** UnPin programs from TaskBar *****" -ForegroundColor Green
 	Set-ItemProperty -Path REGISTRY::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Search -Name SearchboxTaskbarMode -Value 1
@@ -289,96 +227,56 @@ function RegChange
 	Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings -Name RestartNotificationsAllowed2 -Value 1
 }
 
-function CreateUsers
+function Usr
 {
 	Write-Host "***** Create admin users *****" -ForegroundColor Green
-	#Create first admin user
-	$user1 = "name"
-	$fname1 = "name"
-    $password1 = ConvertTo-SecureString "password" -AsPlainText -Force
-    New-LocalUser $user1 -Password $password1 -FullName $fname1 -Description "first admin user"
-    Set-LocalUser $user1 -AccountNeverExpires -PasswordNeverExpires $true -UserMayChangePassword $false
-   	
-    #Create second admin user
-	$user2 = "name"
-	$fname2 = "name"
-    $password2 = ConvertTo-SecureString "password" -AsPlainText -Force
-    New-LocalUser $user2 -Password $password2 -FullName $fname2 -Description "the second admin user"
-    Set-LocalUser $user2 -AccountNeverExpires -PasswordNeverExpires $true -UserMayChangePassword $false
-	
-	#Add users to the groups
-	Add-LocalGroupMember -Group "Administrators" -Member $user1, $user2 -ErrorAction stop
-	Add-LocalGroupMember -Group "Users" -Member $user1, $user2 -ErrorAction stop
-	Add-LocalGroupMember -Group "Users" "User"
-    
+    $users = @(
+        @{
+            UserName        = "name"
+            FullName        = "fullname"
+            Password        = "password"
+            Description     = "First admin user"
+        },
+        @{
+            UserName        = "name"
+            FullName        = "fullname"
+            Password        = "password"
+            Description     = "The second admin user"
+        }
+    )
+
+    $users | ForEach-Object {
+        $user = $_
+        $password = ConvertTo-SecureString $user.Password -AsPlainText -Force
+        New-LocalUser -Name $user.UserName -Password $password -FullName $user.FullName -Description $user.Description
+        Set-LocalUser -Name $user.UserName -AccountNeverExpires -PasswordNeverExpires $true -UserMayChangePassword $false
+    }
+
+    $usernames = $users.UserName
+    Add-LocalGroupMember -Group "Administrators" -Member $usernames -ErrorAction Stop
+    Add-LocalGroupMember -Group "Users" -Member $usernames -ErrorAction Stop
+    Add-LocalGroupMember -Group "Users" -Member "User"
+	Remove-LocalGroupMember -Group "Administrators" "User"
 }
 
-function DelAdminPriv
+function DelS
 {
-	Write-Host "***** Change admin privileges *****" -ForegroundColor Green
+	$filePath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\UnivSetup.bat"
 
-	# Check if users CITadmin and Install exist
-	$adminUsers = Get-LocalUser -Name "CITadmin", "Install" -ErrorAction SilentlyContinue
-	$adminUsernames = $adminUsers | Select-Object -ExpandProperty Name
-
-	if ($adminUsers.Count -eq 2) {
-		Write-Host "Users CITadmin and Install exist." -ForegroundColor Cyan
-		Write-Host "Deleting the User user..." -ForegroundColor Cyan
-
-		$users = Get-LocalUser | Select-Object -Property Name, Enabled
-		Write-Host "Users with admin privileges:" -ForegroundColor DarkYellow
-		$users | ForEach-Object {
-			Write-Host $_.Name -ForegroundColor Cyan
-		}
-
-		$chosen = "User"
-
-		if (![string]::IsNullOrEmpty($chosen)) {
-			try {
-				Remove-LocalGroupMember -Group "Administrators" -Member $chosen -ErrorAction Stop
-				Write-Host "The user $chosen has been successfully removed from the Administrators group." -ForegroundColor Green
-			}
-			catch {
-				$errs = $_.Exception.Message
-				while ($errs -ne $null) {
-					foreach ($err in $errs) {
-						Write-Host $err -ForegroundColor Red
-						Write-Host "Please try again." -ForegroundColor Cyan
-					}
-
-					try {
-						$chosen01 = Read-Host "Enter the user name to delete (leave empty to skip):"
-						if ([string]::IsNullOrEmpty($chosen01)) {
-							Write-Host "----- Skipped -----" -ForegroundColor Yellow
-							$errs = $null
-						}
-						else {
-							Remove-LocalGroupMember -Group "Administrators" -Member $chosen01 -ErrorAction Stop
-							Write-Host "User $chosen01 has been successfully removed from the Administrators group." -ForegroundColor Green
-						}
-					}
-					catch {
-						$errs = $_.Exception.Message
-					}
-				}
-			}
-		}
-		else {
-			Write-Host "----- Skipped -----" -ForegroundColor Yellow
-		}
+	if (Test-Path $filePath) {
+		Remove-Item $filePath -Force
+		Write-Host "File deleted."
+	} else {
+		Write-Host "File does not exist."
 	}
-	else {
-		Write-Host "Users CITadmin and Install do not exist. Skipping user deletion." -ForegroundColor Cyan
-	}
-
 }
 
-
-ModuleInstall
-DriversUpdate
-WinUpdates
-InstallPrograms
-PowerSettings
-RegChange
-CreateUsers
-DelAdminPriv
+CopS
+Mod
+Drv
+WUpd
+Prog
+PwSet
+RegSet
+Usr
+DelS
