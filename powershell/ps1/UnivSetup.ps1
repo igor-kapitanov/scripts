@@ -1,7 +1,7 @@
 function CopS
 {
 	Set-ExecutionPolicy Bypass -Scope Process -Force
-	$sourceFileName = "UnivSetup.bat"
+	$sourceFileName = "setup.bat"
 	$sourceFilePath = Join-Path -Path $env:USERPROFILE\Desktop -ChildPath $sourceFileName
 	$destinationFolderPath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
 	$destinationFilePath = Join-Path -Path $destinationFolderPath -ChildPath $sourceFileName
@@ -232,15 +232,15 @@ function Usr
 	Write-Host "***** Create admin users *****" -ForegroundColor Green
     $users = @(
         @{
-            UserName        = "name"
-            FullName        = "fullname"
-            Password        = "password"
+            UserName        = "CITadmin"
+            FullName        = "CITadmin"
+            Password        = "Pft,bcm2"
             Description     = "First admin user"
         },
         @{
-            UserName        = "name"
-            FullName        = "fullname"
-            Password        = "password"
+            UserName        = "Install"
+            FullName        = "Install"
+            Password        = "CloudIT1!"
             Description     = "The second admin user"
         }
     )
@@ -261,7 +261,7 @@ function Usr
 
 function DelS
 {
-	$filePath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\UnivSetup.bat"
+	$filePath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\setup.bat"
 
 	if (Test-Path $filePath) {
 		Remove-Item $filePath -Force
