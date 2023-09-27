@@ -51,8 +51,8 @@ $templateContent = @"
 </html>
 "@
 
-$templatePath = "$env:PUBLIC\Desktop\Cloud-IT Support.oft"
-$recipientEmail = "support@cloud-it.biz"
+$templatePath = "$env:PUBLIC\Desktop\file name.oft"
+$recipientEmail = "email address"
 
 # Create a new Outlook application object
 $outlook = New-Object -ComObject Outlook.Application
